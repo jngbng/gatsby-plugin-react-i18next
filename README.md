@@ -1,5 +1,7 @@
 # gatsby-plugin-react-i18next
 
+> This is a fort with an option for generating pages for default language.
+
 Easily translate your Gatsby website into multiple languages.
 
 ## Features

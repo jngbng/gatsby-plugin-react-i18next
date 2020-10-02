@@ -1,6 +1,6 @@
 {
-  "name": "gatsby-plugin-react-i18next",
-  "version": "0.0.27",
+  "name": "@jbseo/gatsby-plugin-react-i18next",
+  "version": "0.0.28",
   "description": "Easily translate your Gatsby website into multiple languages",
   "main": "index.js",
   "types": "index.d.ts",
@@ -23,7 +23,7 @@
     "translate"
   ],
   "repository": {
-    "url": "https://github.com/microapps/gatsby-plugin-react-i18next"
+    "url": "https://github.com/jngbng/gatsby-plugin-react-i18next"
   },
   "files": [
     "dist",
