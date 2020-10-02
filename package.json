@@ -1,6 +1,6 @@
 {
   "name": "@jbseo/gatsby-plugin-react-i18next",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "Easily translate your Gatsby website into multiple languages",
   "main": "index.js",
   "types": "index.d.ts",
