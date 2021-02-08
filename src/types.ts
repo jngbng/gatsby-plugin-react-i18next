@@ -18,7 +18,8 @@ export type PluginOptions = {
   siteUrl?: string;
   i18nextOptions: InitOptions;
   pages: Array<PageOptions>;
-  sourceInstanceName?: string;
+  localeJsonSourceName?: string;
+  localeJsonNodeName?: string;
 };
 
 export type I18NextContext = {
@@ -39,6 +40,7 @@ export type PageContext = {
 };
 
 // Taken from https://github.com/gatsbyjs/gatsby/blob/master/packages/gatsby-source-filesystem/index.d.ts
+// No way to refer it without directly depending on gatsby-source-filesystem.
 export interface FileSystemNode extends Node {
   absolutePath: string;
   accessTime: string;
@@ -80,7 +82,7 @@ export interface FileSystemNode extends Node {
 }
 
 export interface LocaleNodeInput extends NodeInput {
-  lng: string;
+  language: string;
   ns: string;
   data: string;
   fileAbsolutePath: string;

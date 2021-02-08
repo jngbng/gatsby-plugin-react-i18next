@@ -1,14 +1,13 @@
 # gatsby-plugin-react-i18next
 
-> This is a fort with an option for generating pages for default language.
-> Also fix hot reloading language JSON files (and incremental build) by parameterizing resoure data. Now it requires fetching translations with graphql query on each page again.
+> This branch has been merged into upstream.
 
 Easily translate your Gatsby website into multiple languages.
 
 ## Features
 
 - Seamless integration with [react-i18next](https://react.i18next.com/) - a powerful internationalization framework for React.
-- No extra graphql queries to fetch translations, everything is done automatically.
+- Code splitting. Load translations for each page separately.
 - Automatic redirection based on the user's preferred language in browser provided by [browser-lang](https://github.com/wiziple/browser-lang).
 - Support multi-language url routes in a single page component. You don't have to create separate pages such as `pages/en/index.js` or `pages/es/index.js`.
 - SEO friendly
@@ -17,6 +16,12 @@ Easily translate your Gatsby website into multiple languages.
 ## Why?
 
 When you build multilingual sites, Google recommends using different URLs for each language version of a page rather than using cookies or browser settings to adjust the content language on the page. [(read more)](https://support.google.com/webmasters/answer/182192?hl=en&ref_topic=2370587)
+
+## :boom: Breaking change since v1.0.0
+
+As of v1.0.0, language JSON resources should be loaded by `gatsby-source-filesystem` plugin and then fetched by GraphQL query. It enables incremental build and hot-reload as language JSON files change.
+
+Users who have loaded language JSON files using `path` option will be affected. Please check configuration example on below.
 
 ## Demo
 
@@ -52,17 +57,17 @@ plugins: [
     resolve: `gatsby-source-filesystem`,
     options: {
       path: `${__dirname}/locales`,
-      name: `locale`,
-      ignore: [`**/\.*`, `**/*~`]
+      name: `locale`
     }
   },
   {
-    resolve: `@jbseo/gatsby-plugin-react-i18next`,
+    resolve: `gatsby-plugin-react-i18next`,
     options: {
-      sourceInstanceName: `locale`,
+      localeJsonSourceName: `locale`, // name given to `gatsby-source-filesystem` plugin.
       languages: [`en`, `es`, `de`],
       defaultLanguage: `en`,
-
+      // if you are using Helmet, you must include siteUrl, and make sure you add http:https
+      siteUrl: `https://example.com/`,
       // you can pass any i18next options
       // pass following options to allow message content as a key
       i18nextOptions: {
@@ -109,8 +114,8 @@ For example:
 
 ```
 |-- en
-    |-- header.json
-    |-- footer.json
+    |-- common.json
+    |-- index.json
 ```
 
 The default namespace is `translation`. [Read more about i18next namespaces](https://www.i18next.com/principles/namespaces)
@@ -158,12 +163,12 @@ export default IndexPage;
 
 export const query = graphql`
   query($language: String!) {
-    locales: allLocale(filter: {lng: {eq: $language}}) {
+    locales: allLocale(filter: {language: {eq: $language}}) {
       edges {
         node {
           ns
           data
-          lng
+          language
         }
       }
     }
@@ -263,15 +268,17 @@ const Header = ({siteTitle}) => {
 
 ## Plugin Options
 
-| Option             | Type     | Description                                                                                                                                                                                                      |
-| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sourceInstanceName | string   | name of nodes that are loaded by `gatsby-source-filesystem`                                                                                                                                                      |
-| languages          | string[] | supported language keys                                                                                                                                                                                          |
-| defaultLanguage    | string   | default language when visiting `/page` instead of `/es/page`                                                                                                                                                     |
-| redirect           | boolean  | if the value is `true`, `/` or `/page-2` will be redirected to the user's preferred language router. e.g) `/es` or `/es/page-2`. Otherwise, the pages will render `defaultLangugage` language. Default is `true` |
-| siteUrl            | string   | public site url, is used to generate language specific meta tags                                                                                                                                                 |
-| pages              | array    | an array of [page options](#page-options) used to modify plugin behaviour for specific pages                                                                                                                     |
-| i18nextOptions     | object   | [i18next configuration options](https://www.i18next.com/overview/configuration-options)                                                                                                                          |
+| Option                      | Type     | Description                                                                                                                                                                                                                                                                                  |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| localeJsonSourceName        | string   | name of JSON translation file nodes that are loaded by `gatsby-source-filesystem` (set by `option.name`). Default is `locale`                                                                                                                                                                |
+| localeJsonNodeName          | string   | name of GraphQL node that holds locale data. Default is `locales`                                                                                                                                                                                                                            |
+| languages                   | string[] | supported language keys                                                                                                                                                                                                                                                                      |
+| defaultLanguage             | string   | default language when visiting `/page` instead of `/es/page`                                                                                                                                                                                                                                 |
+| generateDefaultLanguagePage | string   | generate dedicated page for default language. e.g) `/en/page`. It is useful when you need page urls for all languages. For example, server-side [redirect](https://www.gatsbyjs.com/docs/reference/config-files/actions/#createRedirect) using `Accept-Language` header. Default is `false`. |
+| redirect                    | boolean  | if the value is `true`, `/` or `/page-2` will be redirected to the user's preferred language router. e.g) `/es` or `/es/page-2`. Otherwise, the pages will render `defaultLangugage` language. Default is `true`                                                                             |
+| siteUrl                     | string   | public site url, is used to generate language specific meta tags                                                                                                                                                                                                                             |
+| pages                       | array    | an array of [page options](#page-options) used to modify plugin behaviour for specific pages                                                                                                                                                                                                 |
+| i18nextOptions              | object   | [i18next configuration options](https://www.i18next.com/overview/configuration-options)                                                                                                                                                                                                      |
 
 ## Page options
 
@@ -376,6 +383,29 @@ pages: [
   }
 ];
 ```
+
+## How to fetch translations of specific namespaces only
+
+You can use `ns` and `language` field in gatsby page queries to fetch specific namespaces that are being used in the page. This will be useful when you have several big pages with lots of translations.
+
+```javascript
+export const query = graphql`
+  query($language: String!) {
+    locales: allLocale(filter: {ns: {in: ["common", "index"]}, language: {eq: $language}}) {
+      edges {
+        node {
+          ns
+          data
+          language
+        }
+      }
+    }
+  }
+`;
+```
+
+Note that in this case only files `common.json` and `index.json` will be loaded.
+This plugin will automatically add all loaded namespaces as fallback namespaces so if you don't specify a namespace in your translations they will still work.
 
 ## How to fetch language specific data
 
@@ -497,6 +527,34 @@ module.exports = {
     "extract": "yarn run babel --config-file ./babel-extract.config.js -o tmp/chunk.js 'src/**/*.{js,jsx,ts,tsx}' && rm -rf tmp"
   }
 }
+```
+
+If you want to extract translations per page, you can add a special comment at the beginning of the page:
+
+```
+// i18next-extract-mark-ns-start about-page
+```
+
+This will create a file `about-page.json` with all the translations on this page.
+
+To load this file you need to specify a namespace like this:
+
+```javascript
+export const query = graphql`
+  query($language: String!) {
+    locales: allLocale(
+      filter: {ns: {in: ["translation", "about-page"]}, language: {eq: $language}}
+    ) {
+      edges {
+        node {
+          ns
+          data
+          language
+        }
+      }
+    }
+  }
+`;
 ```
 
 ### Automatically translate to different languages

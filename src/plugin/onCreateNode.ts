@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import {CreateNodeArgs, Node} from 'gatsby';
 import {FileSystemNode, PluginOptions, LocaleNodeInput} from '../types';
 
@@ -8,8 +7,15 @@ export function unstable_shouldOnCreateNode({node}: {node: Node}) {
 }
 
 export const onCreateNode = async (
-  {node, actions, loadNodeContent, reporter}: CreateNodeArgs<FileSystemNode>,
-  pluginOptions: PluginOptions
+  {
+    node,
+    actions,
+    loadNodeContent,
+    createNodeId,
+    createContentDigest,
+    reporter
+  }: CreateNodeArgs<FileSystemNode>,
+  {localeJsonSourceName = 'locale'}: PluginOptions
 ) => {
   if (!unstable_shouldOnCreateNode({node})) {
     return;
@@ -24,15 +30,17 @@ export const onCreateNode = async (
     id
   } = node;
 
-  if (pluginOptions.sourceInstanceName == null) {
+  // Currently only support file resources
+  if (type !== 'File') {
     return;
   }
 
-  const {createNode, createParentChildLink} = actions;
+  // User is not using this feature
+  if (localeJsonSourceName == null) {
+    return;
+  }
 
-  const targetSourceInstanceName = pluginOptions.sourceInstanceName;
-
-  if (type !== 'File' || sourceInstanceName !== targetSourceInstanceName) {
+  if (sourceInstanceName !== localeJsonSourceName) {
     return;
   }
 
@@ -41,7 +49,11 @@ export const onCreateNode = async (
   );
   activity.start();
 
+  // relativeDirectory name is language name.
+  const language = relativeDirectory;
   const content = await loadNodeContent(node);
+
+  // verify & canonicalize indent. (do not care about key order)
   let data: string;
   try {
     data = JSON.stringify(JSON.parse(content), undefined, '');
@@ -50,18 +62,18 @@ export const onCreateNode = async (
     throw new Error(`Unable to parse JSON: ${hint}`);
   }
 
-  const contentDigest = crypto.createHash(`md5`).update(content).digest(`hex`);
+  const {createNode, createParentChildLink} = actions;
 
   const localeNode: LocaleNodeInput = {
-    id: `${id} >>> Locale`,
+    id: createNodeId(`${id} >>> Locale`),
     children: [],
     parent: id,
     internal: {
-      content,
-      contentDigest,
+      content: data,
+      contentDigest: createContentDigest(data),
       type: `Locale`
     },
-    lng: relativeDirectory,
+    language: language,
     ns: name,
     data,
     fileAbsolutePath: absolutePath
